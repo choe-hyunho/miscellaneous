@@ -1,4 +1,4 @@
-# Olimex ARM-USB-JTAG series related settings & files
+# Olimex ARM-USB-OCD series related settings & files
 
 ## Supported ARM targets working in voltage range
 
@@ -93,4 +93,4 @@ After modification, driver will not be installed in normal way. Restart Windows 
 
 ## Further informations
 
-The manual and other useful information can be found [here](https://www.olimex.com/Products/ARM/JTAG/ARM-USB-OCD-H/).
+The manual and other useful information can be found [here](https://www.olimex.com/Products/ARM/JTAG/ARM-USB-OCD/).
