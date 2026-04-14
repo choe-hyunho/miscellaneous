@@ -22,11 +22,11 @@ See [here](https://github.com/xpack-dev-tools/openocd-xpack/releases).
 
 - Connect to target
 
-```
+<pre style="white-space: pre-wrap;"><code>
 .\openocd-0.12.0\bin\openocd.exe -c "bindto 0.0.0.0" -f .\openocd-0.12.0\openocd\scripts\interface\ftdi\olimex-arm-usb-ocd.cfg -f .\openocd-0.12.0\openocd\scripts\board\smdk2410.cfg
-```
+</code></pre>
 
-```
+<pre style="white-space: pre-wrap;"><code>
 xPack Open On-Chip Debugger 0.12.0+dev-02228-ge5888bda3-dirty (2025-10-04-22:44)
 Licensed under GNU GPL v2
 For bug reports, read
@@ -43,10 +43,10 @@ Info : s3c2410.cpu: hardware has 2 breakpoint/watchpoint units
 Info : [s3c2410.cpu] Examination succeed
 Info : [s3c2410.cpu] starting gdb server on 3333
 Info : Listening on port 3333 for gdb connections
-```
+</code></pre>
 
 - Write to NOR Flash
 
-```
+<pre style="white-space: pre-wrap;"><code>
 .\openocd-0.12.0\bin\openocd.exe -f .\openocd-0.12.0\openocd\scripts\interface\ftdi\olimex-arm-usb-ocd.cfg -f .\openocd-0.12.0\openocd\scripts\board\smdk2410.cfg -c "program .\\u-boot.bin reset exit"
-```
+</code></pre>
