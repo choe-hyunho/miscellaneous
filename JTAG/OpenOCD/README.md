@@ -50,3 +50,32 @@ Info : Listening on port 3333 for gdb connections
 ```
 .\openocd-0.12.0\bin\openocd.exe -f .\openocd-0.12.0\openocd\scripts\interface\ftdi\olimex-arm-usb-ocd.cfg -f .\openocd-0.12.0\openocd\scripts\board\smdk2410.cfg -c "program .\\u-boot.bin reset exit"
 ```
+
+```
+xPack Open On-Chip Debugger 0.12.0+dev-02228-ge5888bda3-dirty (2025-10-04-22:44)
+Licensed under GNU GPL v2
+For bug reports, read
+        http://openocd.org/doc/doxygen/bugs.html
+Warn : DEPRECATED: auto-selecting transport "jtag". Use 'transport select jtag' to suppress this message.
+Warn : An adapter speed is not selected in the init scripts. OpenOCD will try to run the adapter at very low speed (100 kHz).
+Warn : To remove this warnings and achieve reasonable communication speed with the target, set "adapter speed" or "jtag_rclk" in the init scripts.
+Info : clock speed 100 kHz
+Info : JTAG tap: s3c2410.cpu tap/device found: 0x0032409d (mfg: 0x04e (Samsung), part: 0x0324, ver: 0x0)
+Info : Embedded ICE version 2
+Info : s3c2410.cpu: hardware has 2 breakpoint/watchpoint units
+Info : [s3c2410.cpu] Examination succeed
+Info : [s3c2410.cpu] starting gdb server on 3333
+Info : Listening on port 3333 for gdb connections
+Info : JTAG tap: s3c2410.cpu tap/device found: 0x0032409d (mfg: 0x04e (Samsung), part: 0x0324, ver: 0x0)
+Info : [s3c2410.cpu] Examination succeed
+[s3c2410.cpu] target halted in ARM state due to debug-request, current mode: Supervisor
+cpsr: 0xa00000d3 pc: 0x00000000
+MMU: disabled, D-Cache: disabled, I-Cache: disabled
+Info : Flash Manufacturer/Device: 0x0001 0x225b
+** Programming Started **
+** Programming Finished **
+** Resetting Target **
+Info : JTAG tap: s3c2410.cpu tap/device found: 0x0032409d (mfg: 0x04e (Samsung), part: 0x0324, ver: 0x0)
+Info : [s3c2410.cpu] Examination succeed
+shutdown command invoked
+```

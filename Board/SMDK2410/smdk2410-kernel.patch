@@ -1,0 +1,311 @@
+diff -uNr linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/arch/arm/mach-s3c24xx/mach-smdk2410.c
+--- linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c	2019-07-28 06:28:39.000000000 +0000
++++ linux-5.1.21/arch/arm/mach-s3c24xx/mach-smdk2410.c	2026-04-09 12:56:24.989573538 +0000
+@@ -19,6 +19,10 @@
+ #include <linux/serial_s3c.h>
+ #include <linux/platform_device.h>
+ #include <linux/io.h>
++#include <linux/input.h>
++#include <linux/gpio.h>
++#include <linux/gpio_keys.h>
++#include <linux/mmc/host.h>
+ 
+ #include <asm/mach/arch.h>
+ #include <asm/mach/map.h>
+@@ -28,11 +32,21 @@
+ #include <asm/irq.h>
+ #include <asm/mach-types.h>
+ 
++#include <mach/regs-gpio.h>
++#include <mach/regs-lcd.h>
++#include <mach/gpio-samsung.h>
++
++#include <mach/fb.h>
+ #include <linux/platform_data/i2c-s3c2410.h>
++#include <linux/platform_data/touchscreen-s3c2410.h>
++#include <linux/platform_data/mmc-s3cmci.h>
++
++#include <sound/s3c24xx_uda134x.h>
+ 
+ #include <plat/devs.h>
+ #include <plat/cpu.h>
+ #include <plat/samsung-time.h>
++#include <plat/gpio-cfg.h>
+ 
+ #include "common.h"
+ #include "common-smdk.h"
+@@ -69,12 +83,179 @@
+ 	}
+ };
+ 
++static struct gpio_keys_button smdk2410_buttons[] = {
++    {
++        .gpio = S3C2410_GPF(0),   // EINT0
++        .code = KEY_ENTER,
++        .desc = "EINT0",
++        .active_low = 1,
++    },
++    {
++        .gpio = S3C2410_GPF(2),   // EINT2
++        .code = KEY_ESC,
++        .desc = "EINT2",
++        .active_low = 1,
++    },
++    {
++        .gpio = S3C2410_GPG(3),   // EINT11
++        .code = KEY_UP,
++        .desc = "EINT11",
++        .active_low = 1,
++    },
++    {
++        .gpio = S3C2410_GPG(11),  // EINT19
++        .code = KEY_DOWN,
++        .desc = "EINT19",
++        .active_low = 1,
++    },
++};
++
++static struct gpio_keys_platform_data smdk2410_button_data = {
++    .buttons = smdk2410_buttons,
++    .nbuttons = ARRAY_SIZE(smdk2410_buttons),
++};
++
++static struct platform_device smdk2410_device_button = {
++    .name = "gpio-keys",
++    .id = -1,
++    .dev = {
++        .platform_data = &smdk2410_button_data,
++    },
++};
++
++#define CS8900_BASE (S3C2410_CS3 + 0x01000300)
++
++static struct resource smdk2410_cs89x0_resources[] = {
++	[0] = DEFINE_RES_MEM(CS8900_BASE, 17),
++	[1] = DEFINE_RES_NAMED(IRQ_EINT9, 1, NULL, IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL),
++};
++
++static struct platform_device smdk2410_device_eth = {
++	.name		= "cs89x0",
++	.num_resources	= ARRAY_SIZE(smdk2410_cs89x0_resources),
++	.resource	= smdk2410_cs89x0_resources,
++};
++
++static struct s3c2410fb_display smdk2410_lcd_cfg __initdata = {
++	.lcdcon5	= S3C2410_LCDCON5_FRM565 |
++			  S3C2410_LCDCON5_INVVLINE |
++			  S3C2410_LCDCON5_INVVFRAME |
++			  S3C2410_LCDCON5_PWREN |
++			  S3C2410_LCDCON5_HWSWP,
++
++	.type		= S3C2410_LCDCON1_TFT,
++
++	.width		= 240,
++	.height		= 320,
++
++	.pixclock	= 200000,//141088,
++	.xres		= 240,
++	.yres		= 320,
++	.bpp		= 16,
++	.left_margin	= 3,
++	.right_margin	= 7,
++	.hsync_len	= 5,
++	.upper_margin	= 2,
++	.lower_margin	= 3,
++	.vsync_len	= 2,
++};
++
++static struct s3c2410fb_mach_info smdk2410_fb_info __initdata = {
++	.displays	= &smdk2410_lcd_cfg,
++	.num_displays	= 1,
++	.default_display = 0,
++
++	.lpcsel = 0x03,
++};
++
++static struct s3c2410_ts_mach_info smdk2410_ts_info __initdata = {
++	.delay = 10000,
++	.presc = 49,
++	.oversampling_shift = 2,
++};
++
++static struct s3c24xx_mci_pdata smdk2410_mmc_cfg __initdata = {
++	.no_wprotect	= 1,
++	.no_detect		= 1,
++	.set_power		= NULL,
++	.ocr_avail		= MMC_VDD_32_33|MMC_VDD_33_34,
++};
++
++static void smdk2410_l3_setdat(struct l3_pins *l3, int val)
++{
++    gpio_set_value(l3->gpio_data, val);
++}
++
++static void smdk2410_l3_setclk(struct l3_pins *l3, int val)
++{
++    gpio_set_value(l3->gpio_clk, val);
++}
++
++static void smdk2410_l3_setmode(struct l3_pins *l3, int val)
++{
++    gpio_set_value(l3->gpio_mode, val);
++}
++
++static struct uda134x_platform_data uda134x_data = {
++	.l3 = {
++		.setdat = smdk2410_l3_setdat,
++		.setclk = smdk2410_l3_setclk,
++		.setmode = smdk2410_l3_setmode,
++
++		.gpio_data = S3C2410_GPB(3),
++		.gpio_clk  = S3C2410_GPB(4),
++		.gpio_mode = S3C2410_GPB(2),
++
++		.use_gpios = 1,
++
++		// timing (safe defaults)
++		.data_hold  = 1,
++		.data_setup = 1,
++		.clock_high = 1,
++		.mode_hold  = 1,
++		.mode_setup = 1,
++	},
++	.model = UDA134X_UDA1341,
++};
++
++static struct platform_device smdk2410_device_codec = {
++    .name = "uda134x-codec",
++    .id   = -1,
++    .dev  = {
++        .platform_data = &uda134x_data,
++    },
++};
++
++static struct s3c24xx_uda134x_platform_data smdk2410_audio_pins = {
++    .l3_clk   = S3C2410_GPB(4),  /* L3 clock GPIO */
++    .l3_mode  = S3C2410_GPB(2),  /* L3 mode GPIO  */
++    .l3_data  = S3C2410_GPB(3),  /* L3 data GPIO  */
++    .model    = UDA134X_UDA1341,
++};
++
++static struct platform_device smdk2410_device_audio = {
++    .name = "s3c24xx_uda134x",
++    .id   = -1,
++	.dev  = {
++        .platform_data = &smdk2410_audio_pins,
++    },
++};
++
+ static struct platform_device *smdk2410_devices[] __initdata = {
+ 	&s3c_device_ohci,
++	&smdk2410_device_eth,
+ 	&s3c_device_lcd,
+ 	&s3c_device_wdt,
++	&s3c_device_rtc,
+ 	&s3c_device_i2c0,
+ 	&s3c_device_iis,
++	&s3c2410_device_dma,
++	&smdk2410_device_codec,
++	&smdk2410_device_audio,
++	&s3c_device_sdi,
++	&s3c_device_adc,
++	&s3c_device_ts,
++	&smdk2410_device_button,
+ };
+ 
+ static void __init smdk2410_map_io(void)
+@@ -92,6 +273,9 @@
+ 
+ static void __init smdk2410_init(void)
+ {
++	s3c24xx_fb_set_platdata(&smdk2410_fb_info);
++	s3c24xx_ts_set_platdata(&smdk2410_ts_info);
++	s3c24xx_mci_set_platdata(&smdk2410_mmc_cfg);
+ 	s3c_i2c0_set_platdata(NULL);
+ 	platform_add_devices(smdk2410_devices, ARRAY_SIZE(smdk2410_devices));
+ 	smdk_machine_init();
+diff -uNr linux-5.1.21.orig/drivers/mmc/host/s3cmci.c linux-5.1.21/drivers/mmc/host/s3cmci.c
+--- linux-5.1.21.orig/drivers/mmc/host/s3cmci.c	2019-07-28 06:28:39.000000000 +0000
++++ linux-5.1.21/drivers/mmc/host/s3cmci.c	2026-04-08 14:27:33.512903708 +0000
+@@ -1762,7 +1762,7 @@
+ 	struct mmc_host	*mmc = platform_get_drvdata(pdev);
+ 	struct s3cmci_host *host = mmc_priv(mmc);
+ 
+-	if (host->irq_cd >= 0)
++	if (host->irq_cd > 0)
+ 		free_irq(host->irq_cd, host);
+ 
+ 	s3cmci_debugfs_remove(host);
+diff -uNr linux-5.1.21.orig/drivers/rtc/rtc-s3c.c linux-5.1.21/drivers/rtc/rtc-s3c.c
+--- linux-5.1.21.orig/drivers/rtc/rtc-s3c.c	2019-07-28 06:28:39.000000000 +0000
++++ linux-5.1.21/drivers/rtc/rtc-s3c.c	2026-04-06 09:42:39.683494278 +0000
+@@ -443,6 +443,24 @@
+ 	return 0;
+ }
+ 
++static const struct of_device_id s3c_rtc_dt_match[];
++
++static const struct s3c_rtc_data *s3c_rtc_get_data(struct platform_device *pdev)
++{
++	const struct of_device_id *match;
++	const struct platform_device_id *id;
++
++	match = of_match_node(s3c_rtc_dt_match, pdev->dev.of_node);
++	if (match)
++		return match->data;
++
++	id = platform_get_device_id(pdev);
++	if (id)
++		return (const struct s3c_rtc_data *)id->driver_data;
++
++	return NULL;
++}
++
+ static int s3c_rtc_probe(struct platform_device *pdev)
+ {
+ 	struct s3c_rtc *info = NULL;
+@@ -462,7 +480,7 @@
+ 	}
+ 
+ 	info->dev = &pdev->dev;
+-	info->data = of_device_get_match_data(&pdev->dev);
++	info->data = s3c_rtc_get_data(pdev);
+ 	if (!info->data) {
+ 		dev_err(&pdev->dev, "failed getting s3c_rtc_data\n");
+ 		return -EINVAL;
+@@ -805,6 +823,27 @@
+ 	.disable		= s3c6410_rtc_disable,
+ };
+ 
++static const struct platform_device_id s3c_rtc_driver_ids[] = {
++	{
++		.name	= "s3c2410-rtc",
++		.driver_data = (kernel_ulong_t)&s3c2410_rtc_data,
++	}, {
++		.name	= "s3c2416-rtc",
++		.driver_data = (kernel_ulong_t)&s3c2416_rtc_data,
++	}, {
++		.name	= "s3c2443-rtc",
++		.driver_data = (kernel_ulong_t)&s3c2443_rtc_data,
++	}, {
++		.name	= "s3c6410-rtc",
++		.driver_data = (kernel_ulong_t)&s3c6410_rtc_data,
++	}, {
++		.name	= "exynos3250-rtc",
++		.driver_data = (kernel_ulong_t)&s3c6410_rtc_data,
++	},
++	{ /* sentinel */ },
++};
++MODULE_DEVICE_TABLE(platform, s3c_rtc_driver_ids);
++
+ static const struct of_device_id s3c_rtc_dt_match[] = {
+ 	{
+ 		.compatible = "samsung,s3c2410-rtc",
+@@ -829,6 +868,7 @@
+ static struct platform_driver s3c_rtc_driver = {
+ 	.probe		= s3c_rtc_probe,
+ 	.remove		= s3c_rtc_remove,
++	.id_table	= s3c_rtc_driver_ids,
+ 	.driver		= {
+ 		.name	= "s3c-rtc",
+ 		.pm	= &s3c_rtc_pm_ops,
