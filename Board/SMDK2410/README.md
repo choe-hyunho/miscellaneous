@@ -64,9 +64,74 @@ docker run -it -h buildroot -v $(pwd):/work -w /work buildroot/base
 - Linux Kernel patch file: [smdk2410-kernel.patch](smdk2410-kernel.patch)
 
 - Build with the following commands:
-```shell
+```
 cd buildroot-2019.05.3
 cp ../smdk2410-buildroot.config .config
 make olddefconfig
 make all 
+```
+
+## U-Boot
+
+- Write `u-boot.bin` to NOR Flash
+```
+tftpboot 0x30000000 u-boot.bin
+protect off 0x00000000 0x000fffff
+erase 0x00000000 0x000fffff
+cp.b 0x30000000 0x00000000 ${filesize}
+```
+
+- Write `u-boot-nand.bin` to NAND Flash
+```
+tftpboot 0x30000000 u-boot-nand.bin
+nand erase 0x0 0x200000
+nand write 0x30000000 0x0 ${filesize}
+```
+
+- Write `uImage` to NAND Flash
+```
+tftpboot 0x30000000 uImage
+nand erase 0x400000 0x400000
+nand write 0x30000000 0x400000 ${filesize}
+```
+
+- Write `root.ubi` to NAND Flash
+```
+tftpboot 0x30000000 rootfs.ubi
+nand erase 0x1800000 0x1800000
+nand write 0x30000000 0x1800000 ${filesize}
+```
+
+- Boot Environment
+```
+setenv bootargs console=ttySAC0,115200 cs89x0_media=rj45 ubi.mtd=6 root=ubi0:rootfs rootfstype=ubifs rw
+setenv bootcmd nand read 0x30000000 0x400000 0x400000\; bootm 0x30000000
+saveenv
+```
+
+## Linux
+
+- Network Environment
+```
+setenv ethaddr 00:0E:3A:24:10:01
+setenv ipaddr 192.168.1.251
+setenv serverip 192.168.1.200
+setenv netmask 255.255.255.0
+setenv gatewayip 192.168.1.1
+saveenv
+```
+
+- Network Test in Shell
+```
+ifconfig eth0 down
+ifconfig eth0 hw ether 00:0E:3A:24:10:01
+ifconfig eth0 192.168.1.250 netmask 255.255.255.0 up
+route add default gw 192.168.1.1
+```
+
+- Network Configuration (`/etc/network/interfaces`)
+```
+auto eth0
+iface eth0 inet dhcp
+    hwaddress ether 00:0E:3A:24:10:01
 ```
