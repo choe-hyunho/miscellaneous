@@ -24,17 +24,13 @@ OM[1:0] - J33=OM[0] & J34=OM[1]
 
 ## NAND Information
 
-- Default NAND Partition
+- NAND Partition Table
 ```
-  0x000000000000-0x000000004000 : "Boot Agent"
-  0x000000000000-0x000000200000 : "S3C2410 flash partition 1" (2M)
-  0x000000400000-0x000000800000 : "S3C2410 flash partition 2" (4M)
-  0x000000800000-0x000000a00000 : "S3C2410 flash partition 3" (2M)
-  0x000000a00000-0x000000e00000 : "S3C2410 flash partition 4" (4M)
-  0x000000e00000-0x000001800000 : "S3C2410 flash partition 5" (10M)
-  0x000001800000-0x000003000000 : "S3C2410 flash partition 6" (24M)
-  0x000003000000-0x000004000000 : "S3C2410 flash partition 7" (16M)
+  0x000000000000-0x000000200000 : "u-boot"
+  0x000000200000-0x000000800000 : "kernel"
+  0x000000800000-0x000004000000 : "rootfs"
 ```
+
 - NAND Device Information
 ```
 Device 0: nand0, sector size 16 KiB
@@ -91,21 +87,23 @@ nand write 0x30000000 0x0 ${filesize}
 - Write `uImage` to NAND Flash
 ```
 tftpboot 0x30000000 uImage
-nand erase 0x400000 0x400000
-nand write 0x30000000 0x400000 ${filesize}
+nand erase 0x200000 0x600000
+nand write 0x30000000 0x200000 ${filesize}
 ```
 
 - Write `root.ubi` to NAND Flash
 ```
 tftpboot 0x30000000 rootfs.ubi
-nand erase 0x1800000 0x1800000
-nand write 0x30000000 0x1800000 ${filesize}
+nand erase 0x800000 0x3800000
+nand write 0x30000000 0x800000 ${filesize}
 ```
 
 - Boot Environment
 ```
-setenv bootargs console=ttySAC0,115200 cs89x0_media=rj45 ubi.mtd=6 root=ubi0:rootfs rootfstype=ubifs rw
-setenv bootcmd nand read 0x30000000 0x400000 0x400000\; bootm 0x30000000
+setenv mtdids nand0=NAND
+setenv mtdparts mtdparts=NAND:2m(u-boot),6m(kernel),-(rootfs)
+setenv bootargs console=ttySAC0,115200 cs89x0_media=rj45 ${mtdparts} ubi.mtd=2 root=ubi0:rootfs rootfstype=ubifs rw
+setenv bootcmd nand read 0x30000000 0x200000 0x600000\; bootm 0x30000000
 saveenv
 ```
 
