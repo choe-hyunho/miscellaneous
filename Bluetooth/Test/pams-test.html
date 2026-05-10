@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Sample illustrating the use of Web Bluetooth / Device Info.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Web Bluetooth Test</title>
+	<script>
+      // Add a global error event listener early on in the page load, to help ensure that browsers
+      // which don't support specific functionality still end up displaying a meaningful message.
+      window.addEventListener('error', function(error) {
+        if (ChromeSamples && ChromeSamples.setStatus) {
+          console.error(error);
+          ChromeSamples.setStatus(error.message + ' (Your browser may not support this feature.)');
+          error.preventDefault();
+        }
+      });
+    </script>
+
+  </head>
+
+  <body>
+    <h1>Web Bluetooth Test</h1>
+    <p class="availability">
+      Available in <a target="_blank" href="https://www.chromestatus.com/feature/5264933985976320">Chrome 45+</a> |
+      <a target="_blank" href="https://github.com/googlechrome/samples/blob/gh-pages/web-bluetooth/">View on GitHub</a> |
+      <a href="https://googlechrome.github.io/samples/web-bluetooth/index.html">Browse Samples</a>
+    </p>
+    <p>The <a href="https://developers.google.com/web/updates/2015/07/interact-with-ble-devices-on-the-web">Web Bluetooth
+  API</a> lets websites discover and communicate with devices over the
+Bluetooth 4 wireless standard using the Generic Attribute Profile (GATT). It is
+currently partially implemented in Android M, Chrome OS, Mac, and Windows 10.</p>
+
+  <button>Get Physical Activity Monitor Service Information</button>
+
+<datalist id="services">
+  <option value="0x183E">physical_activity_monitor</option>
+</datalist>
+
+<datalist id="characteristics">
+  <option value="0x2B3B">pams_features</option>
+</datalist>
+
+<script>
+  var ChromeSamples = {
+    log: function() {
+      var line = Array.prototype.slice.call(arguments).map(function(argument) {
+        return typeof argument === 'string' ? argument : JSON.stringify(argument);
+      }).join(' ');
+
+      document.querySelector('#log').textContent += line + '\n';
+    },
+
+    clearLog: function() {
+      document.querySelector('#log').textContent = '';
+    },
+
+    setStatus: function(status) {
+      document.querySelector('#status').textContent = status;
+    },
+
+    setContent: function(newContent) {
+      var content = document.querySelector('#content');
+      while(content.hasChildNodes()) {
+        content.removeChild(content.lastChild);
+      }
+      content.appendChild(newContent);
+    }
+  };
+</script>
+
+<h3>Live Output</h3>
+<div id="output" class="output">
+  <div id="content"></div>
+  <div id="status"></div>
+  <pre id="log"></pre>
+</div>
+
+<script>
+  if (/Chrome\/(\d+\.\d+.\d+.\d+)/.test(navigator.userAgent)){
+    // Let's log a warning if the sample is not supposed to execute on this
+    // version of Chrome.
+    if (45 > parseInt(RegExp.$1)) {
+      ChromeSamples.setStatus('Warning! Keep in mind this sample has been tested with Chrome ' + 45 + '.');
+    }
+  }
+</script>
+
+<script>
+var controlCharacteristic;
+var currentSessionCharacteristic;
+var sessionDescriptorCharacteristic;
+var stepSummaryCharacteristic;
+
+async function onButtonClick() {
+  try {
+    log('Requesting Bluetooth Device...');
+//    const device = await navigator.bluetooth.requestDevice({acceptAllDevices: true});
+    const device = await navigator.bluetooth.requestDevice({filters: [{services: [0x183E]}]});
+	device.addEventListener('gattserverdisconnected', onDisconnect);
+    log('Connecting to GATT Server...');
+    const server = await device.gatt.connect();
+    log('Getting Physical Activity Monitor Service...');
+    const service = await server.getPrimaryService(0x183E);
+
+    log('Getting Features Characteristic...');
+    const featureCharacteristic = await service.getCharacteristic(0x2B3B);
+    log('Reading Physical Activity Monitor Features...');
+    const featureValue = await featureCharacteristic.readValue();
+    let features = featureValue.getBigUint64(0, 1);
+    log('> PAMS Features is 0x' + features.toString(16));
+    if (features & (1n << 2n))
+      log('>> Features support Device Worn');
+    if (features & (1n << 32n))
+      log('>> Features support Heart Rate');
+    if (features & (1n << 38n))
+      log('>> Features support Normal Walking Steps');
+
+    log('Getting Current Session Characteristic...');
+    const currentSessionCharacteristic = await service.getCharacteristic(0x2B44);
+    log('Registering Indication for Current Session Characteristic...');
+	await currentSessionCharacteristic.startNotifications();
+    log('> Current Session Notification Started');
+	currentSessionCharacteristic.addEventListener('characteristicvaluechanged', handleCurrentSessionNotification);
+
+    log('Reading Physical Activity Monitor Current Session...');
+    const currentSessionValue = await currentSessionCharacteristic.readValue();
+    let flags = currentSessionValue.getUint8(0);
+    let session = currentSessionValue.getUint16(1, 1);
+    let sessionStartBasetime = currentSessionValue.getUint32(3, 1);
+    let sessionStartOffset = currentSessionValue.getInt16(7, 1);
+    let subSession = currentSessionValue.getUint16(9, 1);
+    let subSessionStartBasetime = currentSessionValue.getUint32(11, 1);
+    let subSessionStartOffset = currentSessionValue.getInt16(15, 1);
+	let sessionStartTime = new Date(sessionStartBasetime * 1000);
+	let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
+    log('> PAMS Current Session :');
+    log('>> Flags = ' + (flags == 1 ? 'Running' : 'Stopped'));
+    log('>> SessionID = 0x' + session.toString(16));
+    log('>> Start BaseTime = ' + sessionStartBasetime);
+    log('>> Start Offset = ' + sessionStartOffset);
+    log('>> Start Time = ' + sessionStartTime);
+    log('>> SubSessionID = 0x' + subSession.toString(16));
+    log('>> Start BaseTime = ' + subSessionStartBasetime);
+    log('>> Start Offset = ' + subSessionStartOffset);
+    log('>> Start Time = ' + subSessionStartTime);
+
+    log('Getting Control Point Characteristic...');
+	controlCharacteristic = await service.getCharacteristic(0x2B43);
+    log('Registering Indication for Control Point Characteristic...');
+	await controlCharacteristic.startNotifications();
+    log('> Control Point Notification Started');
+	controlCharacteristic.addEventListener('characteristicvaluechanged', handleControlNotification);
+
+    log('Getting Session Descriptor Characteristic...');
+	sessionDescriptorCharacteristic = await service.getCharacteristic(0x2B45);
+    log('Registering Indication for Session Descriptor Characteristic...');
+	await sessionDescriptorCharacteristic.startNotifications();
+    log('> Session Descriptor Notification Started');
+	sessionDescriptorCharacteristic.addEventListener('characteristicvaluechanged', handleSessionDescriptorNotification);
+
+    log('Getting Step Counter Summary Data Characteristic...');
+	stepSummaryCharacteristic = await service.getCharacteristic(0x2B40);
+    log('Registering Indication for Step Counter Summary Data Characteristic...');
+	await stepSummaryCharacteristic.startNotifications();
+    log('> Step Counter Summary Notification Started');
+	stepSummaryCharacteristic.addEventListener('characteristicvaluechanged', handleStepSummaryNotification);
+
+    log('Writing Control Point Characteristic...');
+	let enquireSessionCommand = Uint8Array.of(0x01);
+	await controlCharacteristic.writeValue(enquireSessionCommand);
+    log('> Enquire Sessions Request sent...');
+
+    await sleep(3000);
+
+    log('Writing Control Point Characteristic...');
+	let enquireSubSessionCommand = Uint8Array.of(0x02, 0x01, 0x00);
+	await controlCharacteristic.writeValue(enquireSubSessionCommand);
+    log('> Enquire SubSessions Request sent...');
+
+    await sleep(5000);
+
+    log('Writing Control Point Characteristic...');
+    let getEndedSessionDataCommand = Uint8Array.of(0x03, 0x01, 0x00, 0xFF, 0xFF, 0x04); // SessionID=0x0001, SubSessionID=0xFFFF(All), Data=Step Counter Summary
+    await controlCharacteristic.writeValue(getEndedSessionDataCommand);
+    log('> Get Ended Session Data Request sent...');
+
+    await sleep(10000);
+
+    log('Writing Control Point Characteristic...');
+    let startSubSessionCommand = Uint8Array.of(0x04, 0x01);
+    await controlCharacteristic.writeValue(startSubSessionCommand);
+    log('> Start Sub-Session Request sent...');
+
+    await sleep(70000);
+
+    log('Writing Control Point Characteristic...');
+    let getEndedSessionDataCommand2 = Uint8Array.of(0x03, 0x01, 0x00, 0x00, 0x00, 0x04); // SessionID=0x0001, SubSessionID=0x0000, Data=Step Counter Summary
+    await controlCharacteristic.writeValue(getEndedSessionDataCommand2);
+    log('> Get Ended Session Data Request sent...');
+
+    await sleep(3000);
+
+    if (device.gatt.connected) {
+      log('Disconnecting Bluetooth Device...');
+      device.gatt.disconnect();
+    }
+  } catch(error) {
+    log('Argh! ' + error);
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function onDisconnect(event) {
+  // Object event.target is Bluetooth Device getting disconnected.
+  log('Bluetooth Device disconnected');
+}
+
+function handleControlNotification(event) {
+  let value = event.target.value;
+  let a = [];
+  // Convert raw data bytes to hex values just for the sake of showing something.
+  // In the "real" world, you'd use data.getUint8, data.getUint16 or even
+  // TextDecoder to process raw data bytes.
+  for (let i = 0; i < value.byteLength; i++) {
+    a.push('0x' + ('00' + value.getUint8(i).toString(16)).slice(-2));
+  }
+  log('> Control Point Notification :');
+  log('>> ' + a.join(' '));
+  let opcode = value.getUint8(0);
+  if (opcode == 0xFA)
+    log('>> Get Ended Session Data Success');
+  else if (opcode == 0xFB)
+    log('>> Enquire SubSession Success');
+  else if (opcode == 0xFC)
+    log('>> Enquire Session Success');
+  else if (opcode == 0xFD)
+    log('>> Get Ended Session Data Error');
+  else if (opcode == 0xFE)
+    log('>> Enquire SubSession Error');
+  else if (opcode == 0xFF)
+    log('>> Enquire Session Error');
+}
+
+function handleCurrentSessionNotification(event) {
+  let value = event.target.value;
+  let a = [];
+  // Convert raw data bytes to hex values just for the sake of showing something.
+  // In the "real" world, you'd use data.getUint8, data.getUint16 or even
+  // TextDecoder to process raw data bytes.
+  for (let i = 0; i < value.byteLength; i++) {
+    a.push('0x' + ('00' + value.getUint8(i).toString(16)).slice(-2));
+  }
+  log('> Current Session Notification :');
+  log('>> ' + a.join(' '));
+  let flag = value.getUint8(0);
+  let sessionId = value.getUint16(1, 1);
+  if (flag & (1 << 0)) {
+    log('>> Current Session/Sub-session is Running');
+  } else {
+    log('>> Current Session/Sub-session is Stopped');
+  }
+  log('>> Session ID = ' + sessionId.toString());
+  let sessionStartBasetime = value.getUint32(3, 1);
+  let sessionStartOffset = value.getInt16(7, 1);
+  let sessionStartTime = new Date(sessionStartBasetime * 1000);
+  log('>> Session Start Time = ' + sessionStartTime);
+  let subSessionId = value.getUint16(9, 1);
+  log('>> SubSession ID = ' + subSessionId.toString());
+  let subSessionStartBasetime = value.getUint32(11, 1);
+  let subSessionStartOffset = value.getInt16(15, 1);
+  let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
+  log('>> Sub-Session Start Time = ' + subSessionStartTime);
+}
+
+function handleSessionDescriptorNotification(event) {
+  let value = event.target.value;
+  let a = [];
+  // Convert raw data bytes to hex values just for the sake of showing something.
+  // In the "real" world, you'd use data.getUint8, data.getUint16 or even
+  // TextDecoder to process raw data bytes.
+  for (let i = 0; i < value.byteLength; i++) {
+    a.push('0x' + ('00' + value.getUint8(i).toString(16)).slice(-2));
+  }
+  log('> Session Descriptor Notification :');
+  log('>> ' + a.join(' '));
+  let flag = value.getUint8(0);
+  let sessionId = value.getUint16(1, 1);
+  log('>> Session ID = ' + sessionId.toString());
+  if (flag & (1 << 0)) {
+    let sessionStartBasetime = value.getUint32(3, 1);
+    let sessionStartOffset = value.getInt16(7, 1);
+	let sessionStartTime = new Date(sessionStartBasetime * 1000);
+    log('>> Start Time = ' + sessionStartTime);
+    if (!(flag & (1 << 1))) {
+      let sessionEndBasetime = value.getUint32(9, 1);
+      let sessionEndOffset = value.getInt16(13, 1);
+	  let sessionEndTime = new Date(sessionEndBasetime * 1000);
+      log('>> End Time = ' + sessionEndTime);
+	}
+  } else {
+    let subSessionId = value.getUint16(3, 1);
+    let subSessionStartBasetime = value.getUint32(5, 1);
+    let subSessionStartOffset = value.getInt16(9, 1);
+	let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
+    log('>> SubSession ID = ' + subSessionId.toString());
+    log('>> Start Time = ' + subSessionStartTime);
+    if (!(flag & (1 << 1))) {
+      let subSessionEndBasetime = value.getUint32(11, 1);
+      let subSessionEndOffset = value.getInt16(15, 1);
+	  let subSessionEndTime = new Date(subSessionEndBasetime * 1000);
+      log('>> End Time = ' + subSessionEndTime);
+	}
+  }
+}
+
+function handleStepSummaryNotification(event) {
+  let value = event.target.value;
+  let a = [];
+  // Convert raw data bytes to hex values just for the sake of showing something.
+  // In the "real" world, you'd use data.getUint8, data.getUint16 or even
+  // TextDecoder to process raw data bytes.
+  for (let i = 0; i < value.byteLength; i++) {
+    a.push('0x' + ('00' + value.getUint8(i).toString(16)).slice(-2));
+  }
+  log('> Step Counter Summary Data Notification :');
+  log('>> ' + a.join(' '));
+  let header = value.getUint8(0);
+  if (header & 0x03)
+    log('>> Single Packet');
+  else
+    log('>> Multiple Packet');
+  let flag = value.getUint8(1);
+  let sessionId = value.getUint16(2, 1);
+  log('>> Session ID = ' + sessionId.toString());
+  let subSessionId = value.getUint16(4, 1);
+  log('>> SubSession ID = ' + subSessionId.toString());
+  let relativeTimestamp = value.getUint32(6, 1);
+  log('>> Relative Timestamp = ' + relativeTimestamp);
+  let sequenceNumber = value.getUint32(10, 1);
+  log('>> Sequence Number = ' + sequenceNumber);
+  if (flag & (1 << 0)) {
+    let walkingSteps = value.getUint8(14);
+	walkingSteps += (value.getUint8(15) << 8);
+	walkingSteps += (value.getUint8(16) << 16);
+    log('>> Normal Walking Step = ' + walkingSteps);
+  }
+ }
+</script>
+
+<script>
+  document.querySelector('button').addEventListener('click', function() {
+    if (isWebBluetoothEnabled()) {
+      ChromeSamples.clearLog();
+      onButtonClick();
+    }
+  });
+</script>
+
+<script>
+  log = ChromeSamples.log;
+
+  function isWebBluetoothEnabled() {
+    if (navigator.bluetooth) {
+      return true;
+    } else {
+      ChromeSamples.setStatus('Web Bluetooth API is not available.\n' +
+          'Please make sure the "Experimental Web Platform features" flag is enabled.');
+      return false;
+    }
+  }
+</script>
+
+</body>
+</html>
