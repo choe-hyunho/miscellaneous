@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
     <title>Web Bluetooth Test</title>
-	<script>
+    <script>
       // Add a global error event listener early on in the page load, to help ensure that browsers
       // which don't support specific functionality still end up displaying a meaningful message.
       window.addEventListener('error', function(error) {
@@ -99,7 +99,7 @@ async function onButtonClick() {
     log('Requesting Bluetooth Device...');
 //    const device = await navigator.bluetooth.requestDevice({acceptAllDevices: true});
     const device = await navigator.bluetooth.requestDevice({filters: [{services: [0x183E]}]});
-	device.addEventListener('gattserverdisconnected', onDisconnect);
+    device.addEventListener('gattserverdisconnected', onDisconnect);
     log('Connecting to GATT Server...');
     const server = await device.gatt.connect();
     log('Getting Physical Activity Monitor Service...');
@@ -121,9 +121,9 @@ async function onButtonClick() {
     log('Getting Current Session Characteristic...');
     const currentSessionCharacteristic = await service.getCharacteristic(0x2B44);
     log('Registering Indication for Current Session Characteristic...');
-	await currentSessionCharacteristic.startNotifications();
+    await currentSessionCharacteristic.startNotifications();
     log('> Current Session Notification Started');
-	currentSessionCharacteristic.addEventListener('characteristicvaluechanged', handleCurrentSessionNotification);
+    currentSessionCharacteristic.addEventListener('characteristicvaluechanged', handleCurrentSessionNotification);
 
     log('Reading Physical Activity Monitor Current Session...');
     const currentSessionValue = await currentSessionCharacteristic.readValue();
@@ -134,8 +134,8 @@ async function onButtonClick() {
     let subSession = currentSessionValue.getUint16(9, 1);
     let subSessionStartBasetime = currentSessionValue.getUint32(11, 1);
     let subSessionStartOffset = currentSessionValue.getInt16(15, 1);
-	let sessionStartTime = new Date(sessionStartBasetime * 1000);
-	let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
+    let sessionStartTime = new Date(sessionStartBasetime * 1000);
+    let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
     log('> PAMS Current Session :');
     log('>> Flags = ' + (flags == 1 ? 'Running' : 'Stopped'));
     log('>> SessionID = 0x' + session.toString(16));
@@ -148,36 +148,36 @@ async function onButtonClick() {
     log('>> Start Time = ' + subSessionStartTime);
 
     log('Getting Control Point Characteristic...');
-	controlCharacteristic = await service.getCharacteristic(0x2B43);
+    controlCharacteristic = await service.getCharacteristic(0x2B43);
     log('Registering Indication for Control Point Characteristic...');
-	await controlCharacteristic.startNotifications();
+    await controlCharacteristic.startNotifications();
     log('> Control Point Notification Started');
-	controlCharacteristic.addEventListener('characteristicvaluechanged', handleControlNotification);
+    controlCharacteristic.addEventListener('characteristicvaluechanged', handleControlNotification);
 
     log('Getting Session Descriptor Characteristic...');
-	sessionDescriptorCharacteristic = await service.getCharacteristic(0x2B45);
+    sessionDescriptorCharacteristic = await service.getCharacteristic(0x2B45);
     log('Registering Indication for Session Descriptor Characteristic...');
-	await sessionDescriptorCharacteristic.startNotifications();
+    await sessionDescriptorCharacteristic.startNotifications();
     log('> Session Descriptor Notification Started');
-	sessionDescriptorCharacteristic.addEventListener('characteristicvaluechanged', handleSessionDescriptorNotification);
+    sessionDescriptorCharacteristic.addEventListener('characteristicvaluechanged', handleSessionDescriptorNotification);
 
     log('Getting Step Counter Summary Data Characteristic...');
-	stepSummaryCharacteristic = await service.getCharacteristic(0x2B40);
+    stepSummaryCharacteristic = await service.getCharacteristic(0x2B40);
     log('Registering Indication for Step Counter Summary Data Characteristic...');
-	await stepSummaryCharacteristic.startNotifications();
+    await stepSummaryCharacteristic.startNotifications();
     log('> Step Counter Summary Notification Started');
-	stepSummaryCharacteristic.addEventListener('characteristicvaluechanged', handleStepSummaryNotification);
+    stepSummaryCharacteristic.addEventListener('characteristicvaluechanged', handleStepSummaryNotification);
 
     log('Writing Control Point Characteristic...');
-	let enquireSessionCommand = Uint8Array.of(0x01);
-	await controlCharacteristic.writeValue(enquireSessionCommand);
+    let enquireSessionCommand = Uint8Array.of(0x01);
+    await controlCharacteristic.writeValue(enquireSessionCommand);
     log('> Enquire Sessions Request sent...');
 
     await sleep(3000);
 
     log('Writing Control Point Characteristic...');
-	let enquireSubSessionCommand = Uint8Array.of(0x02, 0x01, 0x00);
-	await controlCharacteristic.writeValue(enquireSubSessionCommand);
+    let enquireSubSessionCommand = Uint8Array.of(0x02, 0x01, 0x00);
+    await controlCharacteristic.writeValue(enquireSubSessionCommand);
     log('> Enquire SubSessions Request sent...');
 
     await sleep(5000);
@@ -295,27 +295,27 @@ function handleSessionDescriptorNotification(event) {
   if (flag & (1 << 0)) {
     let sessionStartBasetime = value.getUint32(3, 1);
     let sessionStartOffset = value.getInt16(7, 1);
-	let sessionStartTime = new Date(sessionStartBasetime * 1000);
+    let sessionStartTime = new Date(sessionStartBasetime * 1000);
     log('>> Start Time = ' + sessionStartTime);
     if (!(flag & (1 << 1))) {
       let sessionEndBasetime = value.getUint32(9, 1);
       let sessionEndOffset = value.getInt16(13, 1);
-	  let sessionEndTime = new Date(sessionEndBasetime * 1000);
+      let sessionEndTime = new Date(sessionEndBasetime * 1000);
       log('>> End Time = ' + sessionEndTime);
-	}
+    }
   } else {
     let subSessionId = value.getUint16(3, 1);
     let subSessionStartBasetime = value.getUint32(5, 1);
     let subSessionStartOffset = value.getInt16(9, 1);
-	let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
+    let subSessionStartTime = new Date(subSessionStartBasetime * 1000);
     log('>> SubSession ID = ' + subSessionId.toString());
     log('>> Start Time = ' + subSessionStartTime);
     if (!(flag & (1 << 1))) {
       let subSessionEndBasetime = value.getUint32(11, 1);
       let subSessionEndOffset = value.getInt16(15, 1);
-	  let subSessionEndTime = new Date(subSessionEndBasetime * 1000);
+      let subSessionEndTime = new Date(subSessionEndBasetime * 1000);
       log('>> End Time = ' + subSessionEndTime);
-	}
+    }
   }
 }
 
@@ -346,8 +346,8 @@ function handleStepSummaryNotification(event) {
   log('>> Sequence Number = ' + sequenceNumber);
   if (flag & (1 << 0)) {
     let walkingSteps = value.getUint8(14);
-	walkingSteps += (value.getUint8(15) << 8);
-	walkingSteps += (value.getUint8(16) << 16);
+    walkingSteps += (value.getUint8(15) << 8);
+    walkingSteps += (value.getUint8(16) << 16);
     log('>> Normal Walking Step = ' + walkingSteps);
   }
  }

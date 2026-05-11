@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
     <title>Web Bluetooth Test</title>
-	<script>
+    <script>
       // Add a global error event listener early on in the page load, to help ensure that browsers
       // which don't support specific functionality still end up displaying a meaningful message.
       window.addEventListener('error', function(error) {
@@ -97,7 +97,7 @@ async function onButtonClick() {
     log('Requesting Bluetooth Device...');
 //    const device = await navigator.bluetooth.requestDevice({acceptAllDevices: true});
     const device = await navigator.bluetooth.requestDevice({filters: [{services: [0x1847]}]});
-	device.addEventListener('gattserverdisconnected', onDisconnect);
+    device.addEventListener('gattserverdisconnected', onDisconnect);
     log('Connecting to GATT Server...');
     const server = await device.gatt.connect();
     log('Getting Device Time Service...');
@@ -110,57 +110,57 @@ async function onButtonClick() {
     let crc = featureValue.getUint16(0, 1);
     let features = featureValue.getUint16(2, 1);
     log('> DTS Features is 0x' + features.toString(16));
-	let useCrc = false;
+    let useCrc = false;
     if (features & (1 << 0)) {
-	  useCrc = true;
-	  log('>> DTS supports E2E-CRC');
+      useCrc = true;
+      log('>> DTS supports E2E-CRC');
     }
     if (features & (1 << 1)) {
-	  log('>> DTS supports Time Change Logging');
+      log('>> DTS supports Time Change Logging');
     }
     if (features & (1 << 2)) {
-	  log('>> DTS supports Base Time Second-Fractions');
+      log('>> DTS supports Base Time Second-Fractions');
     }
     if (features & (1 << 3)) {
-	  log('>> DTS supports Time/Date Displayed to User');
+      log('>> DTS supports Time/Date Displayed to User');
     }
     if (features & (1 << 4)) {
-	  log('>> DTS supports Displayed Formats');
+      log('>> DTS supports Displayed Formats');
     }
     if (features & (1 << 5)) {
-	  log('>> DTS supports Displayed Formats Changeable');
+      log('>> DTS supports Displayed Formats Changeable');
     }
     if (features & (1 << 6)) {
-	  log('>> DTS supports Separate User Timeline');
+      log('>> DTS supports Separate User Timeline');
     }
     if (features & (1 << 7)) {
-	  log('>> DTS supports Authorization Required');
+      log('>> DTS supports Authorization Required');
     }
     if (features & (1 << 8)) {
-	  log('>> DTS supports RTC Drift Tracking');
+      log('>> DTS supports RTC Drift Tracking');
     }
     if (features & (1 << 9)) {
-	  log('>> DTS supports Epoch Year 1900');
+      log('>> DTS supports Epoch Year 1900');
     }
     if (features & (1 << 10)) {
-	  log('>> DTS supports Epoch Year 2000');
+      log('>> DTS supports Epoch Year 2000');
     }
     if (features & (1 << 11)) {
-	  log('>> DTS supports Propose Non-Logged Time Adjustment Limit');
+      log('>> DTS supports Propose Non-Logged Time Adjustment Limit');
     }
     if (features & (1 << 12)) {
-	  log('>> DTS supports Retrieve Active Time Adjustments');
+      log('>> DTS supports Retrieve Active Time Adjustments');
     }
 
     log('Getting Parameters Characteristic...');
     const parameterCharacteristic = await service.getCharacteristic(0x2B8F);
     log('Reading Device Time Parameters...');
     const parameterValue = await parameterCharacteristic.readValue();
-	let offset = 0;
-	if (useCrc) {
+    let offset = 0;
+    if (useCrc) {
       crc = parameterValue.getUint16(offset, 1);
       offset += 2;
-	}
+    }
     let resolution = parameterValue.getUint16(offset, 1);
     offset += 2;
     log('> RTC Resolution is ' + resolution);
@@ -171,14 +171,14 @@ async function onButtonClick() {
     const timeCharacteristic = await service.getCharacteristic(0x2B90);
     log('Reading Device Time...');
     const timeValue = await timeCharacteristic.readValue();
-	offset = 0;
-	if (useCrc) {
+    offset = 0;
+    if (useCrc) {
       crc = timeValue.getUint16(offset, 1);
       offset += 2;
-	}
+    }
     let basetime = timeValue.getUint32(offset, 1);
     offset += 4;
-	let baseTime = new Date(basetime * 1000);
+    let baseTime = new Date(basetime * 1000);
     log('>> DTS Base Time: ' + baseTime);
     let timezone = timeValue.getInt8(offset, 1);
     offset += 1;
@@ -191,25 +191,25 @@ async function onButtonClick() {
     log('>> DTS Status: 0x' + status.toString(16));
     if (status & (1 << 0)) {
       log('>> DTS Status: Time Fault');
-	}
+    }
     if (status & (1 << 1)) {
       log('>> DTS Status: UTC Aligned');
-	}
+    }
     if (status & (1 << 2)) {
       log('>> DTS Status: Qualified Local Time Synchronized');
-	}
+    }
     if (status & (1 << 3)) {
       log('>> DTS Status: Propose Time Update Request');
-	}
+    }
     if (status & (1 << 4)) {
       log('>> DTS Status: Epoch 2000');
-	}
+    }
     if (status & (1 << 5)) {
       log('>> DTS Status: Non-Logged Time Change Active');
-	}
+    }
     if (status & (1 << 6)) {
       log('>> DTS Status: Log Consolidation Active');
-	}
+    }
     if (features & (1 << 6)) {
       let usertime = timeValue.getUint32(offset, 1);
       offset += 4;
@@ -229,15 +229,15 @@ async function onButtonClick() {
     if (features & (1 << 2)) {
       let fraction = timeValue.getUint16(offset, 1);
       offset += 2;
-	  log('>> DTS Second-Fractions: ' + fraction / 65536);
+      log('>> DTS Second-Fractions: ' + fraction / 65536);
     }
 
     log('Getting Control Point Characteristic...');
-	controlCharacteristic = await service.getCharacteristic(0x2B91);
+    controlCharacteristic = await service.getCharacteristic(0x2B91);
     log('Registering Indication for Control Point Characteristic...');
-	await controlCharacteristic.startNotifications();
+    await controlCharacteristic.startNotifications();
     log('> Control Point Notification Started');
-	controlCharacteristic.addEventListener('characteristicvaluechanged', handleControlNotification);
+    controlCharacteristic.addEventListener('characteristicvaluechanged', handleControlNotification);
 
     log('Writing Control Point Characteristic...');
     let proposeUpdateCommandArray = new Uint8Array(20);
