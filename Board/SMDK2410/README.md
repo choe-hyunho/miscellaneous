@@ -5,10 +5,12 @@
 ## Operation Mode jumper setting
 
 OM[1:0] - J33=OM[0] & J34=OM[1]
-- 00 : NAND BOOT			- For SMC NAND FLASH
-- 01 : Half Word (16Bit)    - For E28F128J3A150 NOR FLASH
-- 10 : Word (32Bit)			- For AM29LV800BB NOR FLASH
+- 00 : NAND BOOT          - For SMC NAND FLASH
+- 01 : Half Word (16Bit)  - For E28F128J3A150 NOR FLASH
+- 10 : Word (32Bit)       - For AM29LV800BB NOR FLASH
 - 11 : TEST MODE
+> [!CAUTION]
+> 0 means jumper short, and 1 means jumper open. See [schemetics](Schematic/SMDK2410_REV13.pdf).
 
 ## Notable Memory Map
 ```
@@ -53,11 +55,13 @@ docker run -it -h buildroot -v $(pwd):/work -w /work buildroot/base
 
 - Use [buildroot-2019.05.3](https://buildroot.org/downloads/buildroot-2019.05.3.tar.gz).
 
-- Buildroot configuration file: [smdk2410-buildroot.config](smdk2410-buildroot.config)
+- Buildroot configuration file: [smdk2410-buildroot-2019.05.3.config](smdk2410-buildroot-2019.05.3.config)
 
-- Linux Kernel configuration file (Addition to defconfig): [smdk2410-kernel.config](smdk2410-kernel.config)
+- Linux Kernel configuration file (Addition to defconfig): [smdk2410-linux-5.1.21.config](smdk2410-linux-5.1.21.config)
 
-- Linux Kernel patch file: [smdk2410-kernel.patch](smdk2410-kernel.patch)
+- Linux Kernel patch file: [smdk2410-linux-5.1.21.patch](smdk2410-linux-5.1.21.patch)
+
+- U-Boot patch file: [smdk2410-u-boot-2012.04.01.patch](smdk2410-u-boot-2012.04.01.patch)
 
 - Build with the following commands:
 ```

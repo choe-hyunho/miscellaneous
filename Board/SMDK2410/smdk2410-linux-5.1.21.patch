@@ -1,7 +1,7 @@
 diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/arch/arm/mach-s3c24xx/mach-smdk2410.c
 --- linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/arch/arm/mach-s3c24xx/mach-smdk2410.c	2026-04-25 07:09:15.062871211 +0000
-@@ -19,20 +19,37 @@
++++ linux-5.1.21/arch/arm/mach-s3c24xx/mach-smdk2410.c	2026-04-26 16:45:52.513895242 +0000
+@@ -19,19 +19,36 @@
  #include <linux/serial_s3c.h>
  #include <linux/platform_device.h>
  #include <linux/io.h>
@@ -21,26 +21,26 @@ diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/a
  #include <asm/irq.h>
  #include <asm/mach-types.h>
  
++#include <mach/fb.h>
++#include <mach/gpio-samsung.h>
 +#include <mach/hardware.h>
 +#include <mach/regs-gpio.h>
 +#include <mach/regs-lcd.h>
-+#include <mach/gpio-samsung.h>
-+#include <mach/fb.h>
 +
  #include <linux/platform_data/i2c-s3c2410.h>
-+#include <linux/platform_data/touchscreen-s3c2410.h>
 +#include <linux/platform_data/mmc-s3cmci.h>
++#include <linux/platform_data/touchscreen-s3c2410.h>
 +
 +#include <sound/s3c24xx_uda134x.h>
  
- #include <plat/devs.h>
+-#include <plat/devs.h>
  #include <plat/cpu.h>
- #include <plat/samsung-time.h>
++#include <plat/devs.h>
 +#include <plat/gpio-cfg.h>
+ #include <plat/samsung-time.h>
  
  #include "common.h"
- #include "common-smdk.h"
-@@ -69,12 +86,239 @@
+@@ -69,12 +86,256 @@
  	}
  };
  
@@ -95,6 +95,22 @@ diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/a
 +	.name		= "cs89x0",
 +	.num_resources	= ARRAY_SIZE(smdk2410_cs89x0_resources),
 +	.resource	= smdk2410_cs89x0_resources,
++};
++
++#define PD6710_MEM_BASE	(S3C2410_CS2 + 0x04000000)
++#define PD6710_IO_BASE	(S3C2410_CS2 + 0x05000000)
++
++static struct resource smdk2410_pd6710_resources[] = {
++	[0] = DEFINE_RES_MEM(PD6710_MEM_BASE, 0x1000),
++	[1] = DEFINE_RES_MEM(PD6710_IO_BASE, 0x1000),
++	[2] = DEFINE_RES_IRQ(IRQ_EINT3),
++	[3] = DEFINE_RES_IRQ(IRQ_EINT8),
++};
++
++static struct platform_device smdk2410_device_pcmcia = {
++	.name		= "i82365",
++	.num_resources	= ARRAY_SIZE(smdk2410_pd6710_resources),
++	.resource	= smdk2410_pd6710_resources,
 +};
 +
 +static struct s3c2410fb_display smdk2410_lcd_cfg __initdata = {
@@ -263,6 +279,7 @@ diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/a
  static struct platform_device *smdk2410_devices[] __initdata = {
  	&s3c_device_ohci,
 +	&smdk2410_device_eth,
++	&smdk2410_device_pcmcia,
  	&s3c_device_lcd,
  	&s3c_device_wdt,
 +	&s3c_device_rtc,
@@ -280,14 +297,20 @@ diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/a
  };
  
  static void __init smdk2410_map_io(void)
-@@ -92,7 +336,24 @@
+@@ -92,7 +353,27 @@
  
  static void __init smdk2410_init(void)
  {
++	s3c_gpio_cfgpin(S3C2410_GPF(3), S3C2410_GPF3_EINT3);
++	s3c_gpio_setpull(S3C2410_GPF(3), S3C_GPIO_PULL_UP);
++	irq_set_irq_type(IRQ_EINT3, IRQ_TYPE_EDGE_FALLING);
++	s3c_gpio_cfgpin(S3C2410_GPG(0), S3C2410_GPG0_EINT8);
++	s3c_gpio_setpull(S3C2410_GPG(0), S3C_GPIO_PULL_UP);
++	irq_set_irq_type(IRQ_EINT8, IRQ_TYPE_LEVEL_LOW);
 +	s3c24xx_fb_set_platdata(&smdk2410_fb_info);
 +	s3c24xx_ts_set_platdata(&smdk2410_ts_info);
 +	s3c24xx_mci_set_platdata(&smdk2410_mmc_cfg);
-+   	i2c_register_board_info(0, smdk2410_i2c_devices, ARRAY_SIZE(smdk2410_i2c_devices));
++	i2c_register_board_info(0, smdk2410_i2c_devices, ARRAY_SIZE(smdk2410_i2c_devices));
  	s3c_i2c0_set_platdata(NULL);
 +	gpio_request(S3C2410_GPG(2), "spi0-cs");
 +	gpio_direction_output(S3C2410_GPG(2), 1);
@@ -297,9 +320,6 @@ diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/a
 +	gpio_direction_output(S3C2410_GPB(0), 0);
 +	gpio_request(S3C2410_GPB(6), "spi1-cs");
 +	gpio_direction_output(S3C2410_GPB(6), 1);
-+	s3c_gpio_cfgpin(S3C2410_GPF(1), S3C2410_GPF1_EINT1);
-+	s3c_gpio_setpull(S3C2410_GPF(1), S3C_GPIO_PULL_UP);
-+	irq_set_irq_type(IRQ_EINT1, IRQ_TYPE_LEVEL_LOW);
 +	s3c_set_platdata(&smdk2410_spi1_data, sizeof(struct s3c2410_spi_info), &s3c_device_spi1);
 +	spi_register_board_info(smdk2410_spi1_devices, ARRAY_SIZE(smdk2410_spi1_devices));
  	platform_add_devices(smdk2410_devices, ARRAY_SIZE(smdk2410_devices));
@@ -307,7 +327,7 @@ diff -urN linux-5.1.21.orig/arch/arm/mach-s3c24xx/mach-smdk2410.c linux-5.1.21/a
  }
 diff -urN linux-5.1.21.orig/drivers/clk/samsung/clk-s3c2410.c linux-5.1.21/drivers/clk/samsung/clk-s3c2410.c
 --- linux-5.1.21.orig/drivers/clk/samsung/clk-s3c2410.c	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/drivers/clk/samsung/clk-s3c2410.c	2026-04-23 12:25:38.682304554 +0000
++++ linux-5.1.21/drivers/clk/samsung/clk-s3c2410.c	2026-04-25 14:38:44.838524343 +0000
 @@ -96,6 +96,8 @@
  
  /* should be added _after_ the soc-specific clocks are created */
@@ -319,7 +339,7 @@ diff -urN linux-5.1.21.orig/drivers/clk/samsung/clk-s3c2410.c linux-5.1.21/drive
  	ALIAS(PCLK_RTC, NULL, "rtc"),
 diff -urN linux-5.1.21.orig/drivers/input/keyboard/Kconfig linux-5.1.21/drivers/input/keyboard/Kconfig
 --- linux-5.1.21.orig/drivers/input/keyboard/Kconfig	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/drivers/input/keyboard/Kconfig	2026-04-24 02:13:02.137232552 +0000
++++ linux-5.1.21/drivers/input/keyboard/Kconfig	2026-04-25 14:38:44.838524343 +0000
 @@ -756,4 +756,10 @@
  	  To compile this driver as a module, choose M here: the
  	  module will be called pmic-keys.
@@ -333,7 +353,7 @@ diff -urN linux-5.1.21.orig/drivers/input/keyboard/Kconfig linux-5.1.21/drivers/
  endif
 diff -urN linux-5.1.21.orig/drivers/input/keyboard/Makefile linux-5.1.21/drivers/input/keyboard/Makefile
 --- linux-5.1.21.orig/drivers/input/keyboard/Makefile	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/drivers/input/keyboard/Makefile	2026-04-24 02:13:35.910216057 +0000
++++ linux-5.1.21/drivers/input/keyboard/Makefile	2026-04-25 14:38:44.838524343 +0000
 @@ -67,3 +67,4 @@
  obj-$(CONFIG_KEYBOARD_TWL4030)		+= twl4030_keypad.o
  obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o
@@ -341,7 +361,7 @@ diff -urN linux-5.1.21.orig/drivers/input/keyboard/Makefile linux-5.1.21/drivers
 +obj-$(CONFIG_KEYBOARD_UR5HCSPI)		+= ur5hcspi.o
 diff -urN linux-5.1.21.orig/drivers/input/keyboard/ur5hcspi.c linux-5.1.21/drivers/input/keyboard/ur5hcspi.c
 --- linux-5.1.21.orig/drivers/input/keyboard/ur5hcspi.c	1970-01-01 00:00:00.000000000 +0000
-+++ linux-5.1.21/drivers/input/keyboard/ur5hcspi.c	2026-04-25 08:31:50.183178187 +0000
++++ linux-5.1.21/drivers/input/keyboard/ur5hcspi.c	2026-04-25 14:38:44.838524343 +0000
 @@ -0,0 +1,470 @@
 +// SPDX-License-Identifier: GPL-2.0
 +#include <linux/module.h>
@@ -815,7 +835,7 @@ diff -urN linux-5.1.21.orig/drivers/input/keyboard/ur5hcspi.c linux-5.1.21/drive
 +MODULE_DESCRIPTION("UR5HCSPI Keyboard Driver");
 diff -urN linux-5.1.21.orig/drivers/mmc/host/s3cmci.c linux-5.1.21/drivers/mmc/host/s3cmci.c
 --- linux-5.1.21.orig/drivers/mmc/host/s3cmci.c	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/drivers/mmc/host/s3cmci.c	2026-04-23 07:30:51.415133875 +0000
++++ linux-5.1.21/drivers/mmc/host/s3cmci.c	2026-04-25 14:38:44.838524343 +0000
 @@ -1762,7 +1762,7 @@
  	struct mmc_host	*mmc = platform_get_drvdata(pdev);
  	struct s3cmci_host *host = mmc_priv(mmc);
@@ -825,9 +845,290 @@ diff -urN linux-5.1.21.orig/drivers/mmc/host/s3cmci.c linux-5.1.21/drivers/mmc/h
  		free_irq(host->irq_cd, host);
  
  	s3cmci_debugfs_remove(host);
+diff -urN linux-5.1.21.orig/drivers/pcmcia/i82365.c linux-5.1.21/drivers/pcmcia/i82365.c
+--- linux-5.1.21.orig/drivers/pcmcia/i82365.c	2019-07-28 06:28:39.000000000 +0000
++++ linux-5.1.21/drivers/pcmcia/i82365.c	2026-04-27 08:11:54.211237720 +0000
+@@ -60,6 +60,7 @@
+ #include "ricoh.h"
+ 
+ 
++#ifndef CONFIG_I82365_MMIO
+ static irqreturn_t i365_count_irq(int, void *);
+ static inline int _check_irq(int irq, int flags)
+ {
+@@ -68,6 +69,7 @@
+     free_irq(irq, i365_count_irq);
+     return 0;
+ }
++#endif
+ 
+ /*====================================================================*/
+ 
+@@ -145,7 +147,12 @@
+     u_short		type, flags;
+     struct pcmcia_socket	socket;
+     unsigned int	number;
++#ifdef CONFIG_I82365_MMIO
++    void __iomem    *memaddr;
++    void __iomem    *ioaddr;
++#else
+     unsigned int	ioaddr;
++#endif
+     u_short		psock;
+     u_char		cs_irq, intr;
+     union {
+@@ -168,7 +175,9 @@
+ #define ISA_LOCK(n, f) spin_lock_irqsave(&isa_lock, f)
+ #define ISA_UNLOCK(n, f) spin_unlock_irqrestore(&isa_lock, f)
+ 
++#ifndef CONFIG_I82365_MMIO
+ static struct timer_list poll_timer;
++#endif
+ 
+ /*====================================================================*/
+ 
+@@ -212,6 +221,23 @@
+ 
+ /*====================================================================*/
+ 
++#ifdef CONFIG_I82365_MMIO
++#define PCIC_INDEX 0x03E0
++#define PCIC_DATA  0x03E1
++
++static u_char i365_get(u_short sock, u_short reg)
++{
++    reg = I365_REG(socket[sock].psock, reg);
++    writeb(reg, socket[sock].ioaddr + PCIC_INDEX);
++    return readb(socket[sock].ioaddr + PCIC_DATA);}
++
++static void i365_set(u_short sock, u_short reg, u_char data)
++{
++    reg = I365_REG(socket[sock].psock, reg);
++    writeb(reg, socket[sock].ioaddr + PCIC_INDEX);
++    writeb(data, socket[sock].ioaddr + PCIC_DATA);
++}
++#else
+ static DEFINE_SPINLOCK(bus_lock);
+ 
+ static u_char i365_get(u_short sock, u_short reg)
+@@ -239,6 +265,7 @@
+ 	spin_unlock_irqrestore(&bus_lock,flags);
+     }
+ }
++#endif
+ 
+ static void i365_bset(u_short sock, u_short reg, u_char mask)
+ {
+@@ -264,7 +291,7 @@
+     i365_set(sock, reg, d);
+ }
+ 
+-static u_short i365_get_pair(u_short sock, u_short reg)
++static u_short __maybe_unused i365_get_pair(u_short sock, u_short reg)
+ {
+     u_short a, b;
+     a = i365_get(sock, reg);
+@@ -445,7 +472,7 @@
+ 	vg46x_set_state(s);
+ }
+ 
+-static u_int __init set_bridge_opts(u_short s, u_short ns)
++static u_int __init __maybe_unused set_bridge_opts(u_short s, u_short ns)
+ {
+     u_short i;
+     u_int m = 0xffff;
+@@ -475,6 +502,7 @@
+     
+ ======================================================================*/
+ 
++#ifndef CONFIG_I82365_MMIO
+ static volatile u_int irq_hits;
+ static u_short irq_sock;
+ 
+@@ -557,6 +585,7 @@
+     
+     return mask1;
+ }
++#endif
+ 
+ /*====================================================================*/
+ 
+@@ -575,7 +604,11 @@
+     int type = -1;
+ 
+     /* Use the next free entry in the socket table */
++#ifdef CONFIG_I82365_MMIO
++    socket[sockets].ioaddr = (void __iomem *)(unsigned long)port;
++#else
+     socket[sockets].ioaddr = port;
++#endif
+     socket[sockets].psock = sock;
+     
+     /* Wake up a sleepy Cirrus controller */
+@@ -598,6 +631,7 @@
+ 	type = IS_IBM; break;
+     }
+     
++#ifndef CONFIG_I82365_MMIO
+     /* Check for Vadem VG-468 chips */
+     outb(0x0e, port);
+     outb(0x37, port);
+@@ -607,6 +641,7 @@
+ 	i365_bclr(sockets, VG468_MISC, VG468_MISC_VADEMREV);
+ 	type = ((val & 7) >= 4) ? IS_VG469 : IS_VG468;
+     }
++#endif
+ 
+     /* Check for Ricoh chips */
+     val = i365_get(sockets, RF5C_CHIP_ID);
+@@ -628,6 +663,7 @@
+     return type;
+ } /* identify */
+ 
++#ifndef CONFIG_I82365_MMIO
+ /*======================================================================
+ 
+     See if a card is present, powered up, in IO mode, and already
+@@ -825,6 +861,7 @@
+ 	}
+     }
+ }
++#endif
+ 
+ /*====================================================================*/
+ 
+@@ -875,12 +912,14 @@
+     return IRQ_RETVAL(handled);
+ } /* pcic_interrupt */
+ 
++#ifndef CONFIG_I82365_MMIO
+ static void pcic_interrupt_wrapper(struct timer_list *unused)
+ {
+     pcic_interrupt(0, NULL);
+     poll_timer.expires = jiffies + poll_interval;
+     add_timer(&poll_timer);
+ }
++#endif
+ 
+ /*====================================================================*/
+ 
+@@ -1230,6 +1269,88 @@
+ 
+ /*====================================================================*/
+ 
++#ifdef CONFIG_I82365_MMIO
++static int i82365_probe(struct platform_device *pdev)
++{
++	struct resource *res_mem, *res_io;
++	int card_irq;
++    int type;
++	int ret;
++
++	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	res_io  = platform_get_resource(pdev, IORESOURCE_MEM, 1);
++
++    socket[0].memaddr = devm_ioremap_resource(&pdev->dev, res_mem);
++    if (IS_ERR(socket[0].memaddr))
++        return PTR_ERR(socket[0].memaddr);
++
++	socket[0].ioaddr = devm_ioremap_resource(&pdev->dev, res_io);
++    if (IS_ERR(socket[0].ioaddr))
++        return PTR_ERR(socket[0].ioaddr);
++
++    /* identify() will use socket[0].ioaddr via i365_get/set */
++    type = identify((unsigned int)(unsigned long)socket[0].ioaddr, 0);
++    if (type < 0) {
++        pr_err("i82365: no i82365-compatible chip found\n");
++        return -ENODEV;
++    }
++    pr_info("i82365: found: %s\n", pcic[type].name);
++
++	cs_irq = platform_get_irq(pdev, 0);
++	if (cs_irq <= 0)
++		return -ENXIO;
++
++	card_irq = platform_get_irq(pdev, 1);
++	if (card_irq <= 0)
++		return -ENXIO;
++
++	ret = request_irq(cs_irq, pcic_interrupt,
++					IRQF_TRIGGER_LOW,
++					"pcmcia-cd", pcic_interrupt);
++	if (ret)
++		return ret;
++
++	/* io window mapped separately */
++    socket[0].type  = type;
++    socket[0].flags = pcic[type].flags;
++	socket[0].cs_irq = cs_irq;
++    socket[0].socket.irq_mask = (1 << card_irq);
++    socket[0].socket.pci_irq  = card_irq;
++
++	sockets = 1;
++    grab_irq = 1;
++
++    socket[0].socket.dev.parent = &pdev->dev;
++    socket[0].socket.ops = &pcic_operations;
++    socket[0].socket.resource_ops = &pccard_nonstatic_ops;
++    socket[0].socket.owner = THIS_MODULE;
++    socket[0].number = 0;
++    socket[0].socket.features |= SS_CAP_PCCARD;
++    socket[0].socket.map_size = 0x1000;
++
++    ret = pcmcia_register_socket(&socket[0].socket);
++    if (!ret)
++        socket[0].flags |= IS_REGISTERED;
++
++    return ret;
++}
++
++static int i82365_remove(struct platform_device *pdev)
++{
++    if (socket[0].flags & IS_REGISTERED)
++        pcmcia_unregister_socket(&socket[0].socket);
++    i365_set(0, I365_CSCINT, 0);
++    free_irq(cs_irq, pcic_interrupt);
++    return 0;
++}
++
++static struct platform_driver i82365_driver = {
++    .probe  = i82365_probe,
++    .remove = i82365_remove,
++    .driver = { .name = "i82365" },
++};
++module_platform_driver(i82365_driver);
++#else
+ static struct platform_driver i82365_driver = {
+ 	.driver = {
+ 		.name = "i82365",
+@@ -1342,5 +1463,6 @@
+ 
+ module_init(init_i82365);
+ module_exit(exit_i82365);
++#endif
+ MODULE_LICENSE("Dual MPL/GPL");
+ /*====================================================================*/
+diff -urN linux-5.1.21.orig/drivers/pcmcia/Kconfig linux-5.1.21/drivers/pcmcia/Kconfig
+--- linux-5.1.21.orig/drivers/pcmcia/Kconfig	2019-07-28 06:28:39.000000000 +0000
++++ linux-5.1.21/drivers/pcmcia/Kconfig	2026-04-26 14:24:27.917060475 +0000
+@@ -138,6 +138,14 @@
+ 	  "bridge" is the hardware inside your computer that PCMCIA cards are
+ 	  plugged into. If unsure, say N.
+ 
++config I82365_MMIO
++    bool "MMIO platform device support"
++    depends on I82365
++    help
++      Enable for memory-mapped I/O platforms where the i82365-compatible
++      controller is accessed via CPU memory bus (e.g. pd6710 on SMDK2410
++      via nGCS2) instead of ISA I/O ports.
++
+ config TCIC
+ 	tristate "Databook TCIC host bridge support"
+ 	depends on PCMCIA && ISA
 diff -urN linux-5.1.21.orig/drivers/rtc/rtc-s3c.c linux-5.1.21/drivers/rtc/rtc-s3c.c
 --- linux-5.1.21.orig/drivers/rtc/rtc-s3c.c	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/drivers/rtc/rtc-s3c.c	2026-04-23 07:30:51.415133875 +0000
++++ linux-5.1.21/drivers/rtc/rtc-s3c.c	2026-04-25 14:38:44.838524343 +0000
 @@ -443,6 +443,24 @@
  	return 0;
  }
@@ -900,7 +1201,7 @@ diff -urN linux-5.1.21.orig/drivers/rtc/rtc-s3c.c linux-5.1.21/drivers/rtc/rtc-s
  		.pm	= &s3c_rtc_pm_ops,
 diff -urN linux-5.1.21.orig/drivers/spi/spi-s3c24xx.c linux-5.1.21/drivers/spi/spi-s3c24xx.c
 --- linux-5.1.21.orig/drivers/spi/spi-s3c24xx.c	2019-07-28 06:28:39.000000000 +0000
-+++ linux-5.1.21/drivers/spi/spi-s3c24xx.c	2026-04-25 06:06:31.810013259 +0000
++++ linux-5.1.21/drivers/spi/spi-s3c24xx.c	2026-04-25 14:38:44.838524343 +0000
 @@ -182,9 +182,7 @@
  
  	/* allocate settings on the first call */
