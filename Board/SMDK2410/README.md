@@ -12,6 +12,26 @@ OM[1:0] - J33=OM[0] & J34=OM[1]
 > [!CAUTION]
 > 0 means jumper short, and 1 means jumper open. See [schemetics](Schematic/SMDK2410_REV13.pdf).
 
+## About Steppingstone
+
+## Steppingstone
+
+Generally, the boot code will copy NAND flash content to SDRAM. Using hardware ECC, the NAND flash data
+validity will be checked. Upon the completion of the copy, the main program will be executed on the SDRAM.
+
+AUTO BOOT MODE SEQUENCE
+
+1. Reset is completed.
+2. When the auto boot mode is enabled, the first 4 KBytes of NAND flash memory is copied onto Steppingstone
+4-KB internal buffer.
+3. The Steppingstone is mapped to nGCS0.
+4. CPU starts to execute the boot code on the Steppingstone 4-KB internal buffer.
+
+NOTE
+
+In the auto boot mode, ECC is not checked. So, The first 4 KBytes of NAND flash should have no bit
+error.
+
 ## Notable Memory Map
 ```
  0x00000000 : Flash (NOR mode) or 4K SRAM(NAND mode)
@@ -136,4 +156,35 @@ route add default gw 192.168.1.1
 auto eth0
 iface eth0 inet dhcp
     hwaddress ether 00:0E:3A:24:10:01
+```
+
+## GDB
+
+- [GDB setup example](smdk2410-setup.gdb)
+```
+target remote 192.168.1.200:3333
+monitor reset init
+set confirm off
+set architecture armv4t
+set output-radix 16
+set disassemble-next-line on
+#restore nand_spl/u-boot-spl.bin binary 0x0
+#add-symbol-file nand_spl/u-boot-spl 0x0
+set $pc = 0x0
+x/10i $pc
+```
+
+- GDB command line
+```
+gdb-multiarch -x ../smdk2410-setup.gdb nand_spl/u-boot-spl
+```
+
+- Frequently used GDB commands
+```
+[c]ontinue
+[s]tep
+[n]ext
+[b]reak​ <function name or filename:line# or *memory address>
+[b]ack[t]race
+[q]uit
 ```

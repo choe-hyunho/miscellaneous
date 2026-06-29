@@ -1,0 +1,30 @@
+- Initial Memory Map
+0x00000000-0x07FFFFFF SROM(nGCS0)
+0x08000000-0x0FFFFFFF SROM(nGCS1)
+0x10000000-0x17FFFFFF SROM(nGCS2)
+0x18000000-0x1FFFFFFF SROM(nGCS3)
+0x20000000-0x27FFFFFF SROM(nGCS4)
+0x28000000-0x2FFFFFFF SROM(nGCS5)
+0x30000000-0x37FFFFFF SROM/SDRAM(nGCS6)
+0x38000000-0x3FFFFFFF SROM/SDRAM(nGCS7)
+
+- u-boot environment
+bootargs=console=ttySAC0,115200 root=/dev/mtdblock3 rootfstype=jffs2 mtdparts=NAND:448k(boot),64k(env),4M(kernel),-(rootfs)
+bootdelay=5
+mtdids=nand0=NAND
+mtdparts=mtdparts=NAND:448k(boot),64k(env),4M(kernel),-(rootfs)
+
+- Transfer commands
+loady
+
+- NOR commands
+flinfo
+protect off all
+erase all
+cp.b 30800000 00000000 ${filesize}
+
+- NAND commands
+nand info
+nand erase.chip
+nand erase 00000000 80000
+nand write 30800000 00000000 ${filesize}
