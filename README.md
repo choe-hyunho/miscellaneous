@@ -11,3 +11,7 @@ This repository stores my various works not classfied as single project.
 ### [Olimex ARM-USB-OCD series](JTAG/Olimex_ARM-USB-OCD/)
 
 ### [Open On-Chip Debugger(OpenOCD)](JTAG/OpenOCD/)
+
+## [Bluetooth](Bluetooth/)
+
+### [Bluetooth Test on PC](Bluetooth/Test/)
