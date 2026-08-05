@@ -1359,3 +1359,17 @@ index 817ea46af291..b0e8095acc3d 100644
  			continue;
  
  		sprintf(clkname, "clk_uart_baud%d", cnt);
+diff --git a/sound/soc/codecs/uda134x.h b/sound/soc/codecs/uda134x.h
+index 664618c2571c..328242f76822 100644
+--- a/sound/soc/codecs/uda134x.h
++++ b/sound/soc/codecs/uda134x.h
+@@ -27,7 +27,7 @@
+ #define UDA134X_DATA011 13
+ #define UDA134X_DATA1   14
+ 
+-#define STATUS0_DAIFMT_MASK (~(7<<1))
+-#define STATUS0_SYSCLK_MASK (~(3<<4))
++#define STATUS0_DAIFMT_MASK (7<<1)
++#define STATUS0_SYSCLK_MASK (3<<4)
+ 
+ #endif
